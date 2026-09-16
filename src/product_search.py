@@ -279,3 +279,54 @@ def get_delivery_time(product_id, destination_store):
         return None
 
     return dict(row)
+
+
+def compare_products(product_ids):
+    """
+    Compare multiple products by their specifications.
+
+    Parameters:
+        product_ids: list of product IDs, e.g.
+            ["LAP0003", "LAP3706"]
+
+    Returns:
+        List of product details for comparison.
+    """
+    if not product_ids:
+        return []
+
+    connection = sqlite3.connect(DB_PATH)
+    connection.row_factory = sqlite3.Row
+    cursor = connection.cursor()
+
+    placeholders = ",".join("?" for _ in product_ids)
+
+    query = f"""
+        SELECT
+            product_id,
+            brand,
+            product_name,
+            price,
+            processor,
+            processor_brand,
+            cpu_ghz,
+            ram_gb,
+            ram_max_gb,
+            gpu_name,
+            gpu_brand,
+            gpu_vram_gb,
+            ssd_gb,
+            hdd_gb,
+            display_inches,
+            os
+        FROM products
+        WHERE product_id IN ({placeholders})
+    """
+
+    cursor.execute(query, product_ids)
+
+    products = [dict(row) for row in cursor.fetchall()]
+
+    connection.close()
+
+    return products

@@ -92,6 +92,7 @@ get_product_details()
 check_store_stock()
 check_warehouse_stock()
 get_delivery_time()
+compare_products()
 ```
 
 ## Tech Stack
@@ -136,16 +137,16 @@ tech_ai/
 - [X] Implement warehouse stock checking
 - [X] Create warehouse-to-store delivery routes
 - [X] Implement delivery time lookup
-
-* [ ] Add semantic product search with RAG
-* [ ] Add embeddings and vector search
-* [ ] Integrate an LLM
-* [ ] Implement tool calling
-* [ ] Build the shopping agent workflow
-* [ ] Add product comparison and recommendation logic
-* [ ] Add Streamlit interface
-* [ ] Add agent evaluation and test scenarios
-* [ ] Improve documentation with architecture diagrams and examples
+- [X] Implement product comparison
+- [ ] Add semantic product search with RAG
+- [ ] Add embeddings and vector search
+- [ ] Integrate an LLM
+- [ ] Implement tool calling
+- [ ] Build the shopping agent workflow
+- [ ] Add product comparison and recommendation logic
+- [ ] Add Streamlit interface
+- [ ] Add agent evaluation
+- [ ] Improve documentation and examples
 
 ## Goal
 
