@@ -1,10 +1,11 @@
+
 # AI Shopping Agent
 
 An AI-powered shopping assistant that helps users find products based on natural-language requirements, check product availability, and estimate delivery time.
 
 ## Project Status
 
-Backend foundation completed. The current version includes a structured product catalog, inventory management, and delivery information.
+Backend foundation and hybrid product retrieval are implemented. The current version includes a structured product catalog, inventory management, delivery information, semantic search, and hybrid retrieval.
 
 ## Implemented
 
@@ -68,20 +69,34 @@ Implemented warehouse-to-store delivery routes:
 
 Implemented delivery lookup based on product availability and destination store.
 
+### Retrieval
+
+Implemented hybrid product retrieval combining structured filtering and semantic search.
+
+* Sentence Transformer embeddings
+* FAISS vector search
+* Natural-language requirement extraction
+* Structured SQL filtering
+* Semantic ranking of filtered candidates
+
 ## Current Architecture
 
 ```text
-Product Dataset
-      ↓
-Data Cleaning
-      ↓
-SQLite Product Catalog
-      ↓
-Product Search
-      ↓
+User Query
+    ↓
+Requirement Extraction
+    ↓
+Structured SQL Search
+    +
+Semantic Search
+    ↓
+Candidate Products
+    ↓
 Inventory
-      ↓
-Delivery Routes
+    ↓
+Delivery
+    ↓
+Recommendation
 ```
 
 ## Current Tools
@@ -101,6 +116,8 @@ compare_products()
 * Pandas
 * NumPy
 * SQLite
+* Sentence Transformers
+* FAISS
 * Git
 
 ## Project Structure
@@ -108,7 +125,10 @@ compare_products()
 ```text
 tech_ai/
 ├── data/
+│   ├── laptop.csv
+│   └── laptops_clean.csv
 ├── database/
+│   └── shop.db
 ├── scripts/
 │   ├── clean_data.py
 │   ├── create_database.py
@@ -116,10 +136,14 @@ tech_ai/
 │   └── create_delivery_routes.py
 ├── src/
 │   ├── product_search.py
+│   ├── query_parser.py
+│   ├── semantic_search.py
+│   ├── hybrid_search.py
 │   ├── test_product_search.py
 │   ├── test_product_details.py
 │   ├── test_inventory.py
-│   └── test_delivery.py
+│   ├── test_delivery.py
+│   └── test_compare_products.py
 ├── .gitignore
 ├── requirements.txt
 └── README.md
@@ -127,26 +151,27 @@ tech_ai/
 
 ## Roadmap
 
-- [X] Collect and inspect product dataset
-- [X] Clean and normalize product data
-- [X] Build SQLite product catalog
-- [X] Implement structured product search
-- [X] Implement product details retrieval
-- [X] Create store and warehouse inventory
-- [X] Implement store stock checking
-- [X] Implement warehouse stock checking
-- [X] Create warehouse-to-store delivery routes
-- [X] Implement delivery time lookup
-- [X] Implement product comparison
-- [ ] Add semantic product search with RAG
-- [ ] Add embeddings and vector search
-- [ ] Integrate an LLM
-- [ ] Implement tool calling
-- [ ] Build the shopping agent workflow
-- [ ] Add product comparison and recommendation logic
-- [ ] Add Streamlit interface
-- [ ] Add agent evaluation
-- [ ] Improve documentation and examples
+* [X] Collect and inspect product dataset
+* [X] Clean and normalize product data
+* [X] Build SQLite product catalog
+* [X] Implement structured product search
+* [X] Implement product details retrieval
+* [X] Create store and warehouse inventory
+* [X] Implement store stock checking
+* [X] Implement warehouse stock checking
+* [X] Create warehouse-to-store delivery routes
+* [X] Implement delivery time lookup
+* [X] Implement product comparison
+* [X] Add semantic product search with RAG
+* [X] Add embeddings and vector search
+* [X] Add hybrid structured + semantic search
+* [ ] Integrate an LLM
+* [ ] Implement tool calling
+* [ ] Build the shopping agent workflow
+* [ ] Add recommendation logic
+* [ ] Add Streamlit interface
+* [ ] Add agent evaluation
+* [ ] Improve documentation and examples
 
 ## Goal
 
