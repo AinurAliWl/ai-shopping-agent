@@ -280,6 +280,57 @@ def get_delivery_time(product_id, destination_store):
 
     return dict(row)
 
+def check_product_availability(product_id, destination_store):
+    """
+    Determine product availability using the store -> warehouse -> delivery workflow.
+
+    Workflow:
+    1. Check physical store stock.
+    2. If store stock exists, return it and stop.
+    3. Otherwise check warehouse stock.
+    4. If warehouse stock exists, check delivery time to the destination store.
+    5. Otherwise mark the product as unavailable.
+    """
+
+    # Step 1: check store stock
+    store_stock = check_store_stock(product_id)
+
+    if store_stock:
+        return {
+            "status": "store_stock",
+            "product_id": product_id,
+            "stores": store_stock,
+        }
+
+    # Step 2: check warehouse stock
+    warehouse_stock = check_warehouse_stock(product_id)
+
+    if not warehouse_stock:
+        return {
+            "status": "unavailable",
+            "product_id": product_id,
+        }
+
+    # Step 3: check delivery from warehouse to destination store
+    delivery = get_delivery_time(
+        product_id,
+        destination_store
+    )
+
+    if delivery is None:
+        return {
+            "status": "warehouse_stock",
+            "product_id": product_id,
+            "warehouses": warehouse_stock,
+            "delivery": None,
+        }
+
+    return {
+        "status": "warehouse_delivery",
+        "product_id": product_id,
+        "warehouses": warehouse_stock,
+        "delivery": delivery,
+    }
 
 def compare_products(product_ids):
     """
