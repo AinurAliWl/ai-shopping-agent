@@ -244,6 +244,29 @@ def hybrid_search(query, top_k=5):
 
     return results
 
+def hybrid_search_products(query, top_k=20):
+    """
+    Return hybrid search results as plain product dictionaries
+    for the agent.
+    """
+
+    results = hybrid_search(
+        query,
+        top_k=top_k
+    )
+
+    products = []
+
+    for result in results:
+        product = result.get("product")
+
+        if product is None:
+            continue
+
+        products.append(product)
+
+    return products
+
 
 def main():
     query = (

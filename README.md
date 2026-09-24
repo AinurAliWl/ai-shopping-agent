@@ -1,24 +1,28 @@
 
 # AI Shopping Agent
 
-An AI-powered shopping agent that helps users find laptops from a structured product catalog using natural-language requirements, verify inventory, and provide grounded recommendations.
+An AI-powered shopping agent that helps users find laptops from a structured product catalog using natural-language requirements, verify inventory, and compare products using grounded catalog data.
 
 ## Project Status
 
-The core agent workflow is implemented.
+The core agent workflow is implemented and tested.
 
-The current version includes:
+Current functionality includes:
 
-* structured product catalog
-* SQL-based product filtering
-* semantic and hybrid retrieval
+* structured laptop catalog
+* SQL-based hard filtering
+* semantic retrieval with FAISS
+* hybrid product retrieval
+* natural-language requirement parsing
 * store and warehouse inventory
 * warehouse-to-store transfer estimates
 * LLM tool calling
 * deterministic availability verification
+* product details retrieval
+* product comparison
 * final-response grounding validation
 
-The project is currently focused on improving retrieval quality, evaluation, and the final user interface.
+The next stage is building the user-facing Streamlit interface and preparing the project for demonstration.
 
 ## How It Works
 
@@ -27,13 +31,16 @@ User Query
     ↓
 LLM Agent
     ↓
-search_products()
+Natural-Language Requirements
     ↓
-SQL Hard Filtering
+Hybrid Product Search
+    ├── SQL Hard Filtering
+    └── Semantic Ranking
     ↓
-Semantic Ranking
-    ↓
-Python Inventory Workflow
+Python Availability Workflow
+    ├── Store Inventory
+    ├── Warehouse Inventory
+    └── Warehouse → Store Transfer
     ↓
 Verified Products
     ↓
@@ -44,28 +51,42 @@ Grounding Validation
 Final Answer
 ```
 
-The LLM is responsible for understanding the user's natural-language requirements and explaining the results.
+The LLM is responsible for understanding natural-language requests, selecting the appropriate tools, and explaining verified results.
 
-Deterministic Python code is responsible for product filtering, inventory verification, and delivery-route lookup. This prevents the model from inventing stock or delivery information.
+Deterministic Python code is responsible for structured product filtering, inventory verification, and warehouse-to-store route lookup.
 
-## Implemented
+This separation prevents the LLM from inventing product stock, transfer times, or unsupported catalog specifications.
 
-### Product Data
+## Product Data
 
-* Cleaned and normalized the original laptop dataset
-* Converted source prices to USD using a fixed conversion rate
-* Handled missing and inconsistent values
-* Recovered 21 corrupted processor records from product names
-* Removed duplicate records
+The project uses a laptop product dataset that was cleaned and normalized before being loaded into the application database.
+
+Data preparation includes:
+
+* duplicate removal
+* missing-value handling
+* normalization of inconsistent values
+* GPU value normalization
+* conversion of source prices to USD using a fixed conversion rate
+* recovery of 21 corrupted processor records from product names
+* removal of unusable or inconsistent fields
 
 Final cleaned dataset:
 
-* 3,972 laptop products
-* 22 columns
+* **3,972 products**
+* **22 columns**
 
-### Product Catalog
+The cleaned dataset is stored in:
 
-SQLite database containing structured product information:
+```text
+data/laptops_clean.csv
+```
+
+## Product Catalog
+
+Product data is stored in a SQLite database.
+
+The catalog contains structured fields including:
 
 * Product ID
 * Brand
@@ -81,105 +102,168 @@ SQLite database containing structured product information:
 * GPU VRAM
 * SSD
 * HDD
-* Display
+* Display size
+* Display type
 * Operating system
 * Price
 * Battery information
 
-### Structured Product Search
+Database:
 
-Implemented SQL filtering by:
+```text
+database/shop.db
+```
 
-* Maximum price
-* Minimum RAM
+## Natural-Language Query Parsing
+
+The agent can extract structured requirements from natural-language requests.
+
+For example:
+
+```text
+I need a Lenovo laptop for machine learning,
+at least 16 GB RAM, 512 GB SSD,
+NVIDIA GPU, under $600.
+```
+
+The parser can identify requirements such as:
+
+```text
+brand: Lenovo
+min_ram: 16 GB
+min_ssd: 512 GB
+gpu_brand: NVIDIA
+max_price: $600
+```
+
+The original user query is also preserved as the semantic search query.
+
+## Structured Product Search
+
+SQL filtering is used for explicit product constraints such as:
+
+* maximum price
+* minimum RAM
+* minimum SSD capacity
 * GPU brand
-* Minimum SSD capacity
-* Laptop brand
-* Operating system
+* laptop brand
+* operating system
 
-### Semantic Search
+Hard requirements are applied before semantic ranking.
 
-Implemented semantic retrieval using:
+This ensures that semantic similarity does not reintroduce products that violate explicit constraints.
+
+## Semantic Search
+
+Semantic retrieval is implemented using:
 
 * Sentence Transformers
 * `all-MiniLM-L6-v2`
 * FAISS
 
-The semantic search is used to rank products according to the meaning of the user's request.
+The system creates embeddings for the product catalog and uses the user's natural-language request to calculate semantic similarity between the request and filtered catalog products.
 
-### Hybrid Retrieval
+Vector index:
 
-Hybrid retrieval combines:
+```text
+database/products.index
+```
 
-1. deterministic SQL filtering for hard requirements;
-2. semantic ranking of the filtered candidates.
+Product ID mapping:
 
-This prevents semantic similarity from returning products that violate explicit requirements such as price or minimum RAM.
+```text
+database/product_ids.npy
+```
 
-### Inventory
+## Hybrid Retrieval
 
-Implemented synthetic inventory for:
+Hybrid retrieval combines deterministic filtering with semantic ranking:
+
+```text
+User Query
+    ↓
+Requirement Parser
+    ↓
+SQL Hard Filtering
+    ↓
+Candidate Products
+    ↓
+FAISS Semantic Ranking
+    ↓
+Ranked Products
+```
+
+SQL determines which products satisfy explicit requirements.
+
+Semantic search then ranks those candidates according to the meaning of the original request.
+
+This combines the precision of structured filtering with the flexibility of natural-language search.
+
+## Inventory
+
+The project contains synthetic inventory data for testing the availability workflow.
+
+Current locations:
 
 * Astana Mega Silk Way
 * Astana Khan Shatyr
 * Central Warehouse
 
-Current database:
+The database currently contains:
 
-* 5,551 inventory records
+* **5,551 inventory records**
 
-Store inventory is treated separately from warehouse inventory.
+Store inventory and warehouse inventory are handled separately.
 
-### Delivery
+A store quantity means only that the product is recorded in that store's inventory.
 
-Implemented warehouse-to-store transfer routes:
+## Warehouse-to-Store Transfer
 
-* Central Warehouse → Astana Mega Silk Way: 1–2 days
-* Central Warehouse → Astana Khan Shatyr: 2–3 days
-
-These values represent warehouse-to-store transfer estimates only. They are not customer delivery estimates.
-
-### Availability Workflow
-
-The Python backend verifies availability using the following workflow:
+The project contains synthetic warehouse-to-store transfer routes:
 
 ```text
-Check store inventory
-        ↓
-If unavailable
-        ↓
-Check warehouse inventory
-        ↓
-If available
-        ↓
-Check warehouse-to-store transfer route
+Central Warehouse
+    ├── Astana Mega Silk Way: 1–2 days
+    └── Astana Khan Shatyr: 2–3 days
 ```
 
-The LLM receives only verified availability information.
+These values represent warehouse-to-store transfer estimates only.
 
-### LLM Agent
+They are not customer delivery estimates.
 
-Implemented an LLM shopping agent using an OpenAI-compatible API through OpenRouter.
+## Availability Workflow
 
-The agent can use tools for:
+Availability is verified by deterministic Python code before the results are returned to the LLM.
 
-* product search
-* product details
-* product comparison
+```text
+Product Candidate
+      ↓
+Check Store Inventory
+      ↓
+Product in Store?
+   ↙          ↘
+ Yes           No
+  ↓             ↓
+Store Stock   Check Warehouse
+                  ↓
+             Warehouse Stock?
+              ↙          ↘
+            No            Yes
+             ↓             ↓
+         Unavailable   Check Transfer Route
+```
 
-The model does not directly access the inventory database. Inventory verification is performed by deterministic Python code.
+If a destination store is explicitly specified, the workflow checks that store.
 
-### Grounding Validation
+If no destination store is specified, the workflow checks the available stores and warehouse-to-store routes separately.
 
-Added a final validation layer that checks the generated response for unsupported claims.
+The LLM receives the verified availability data rather than determining inventory itself.
 
-If a potentially unsupported claim is detected, the response is regenerated with instructions to use only information explicitly present in the tool results.
+## LLM Agent
 
-This provides an additional safeguard against unsupported product specifications and availability claims.
+The project uses an OpenAI-compatible API through OpenRouter.
 
-## Tools
-
-The agent currently exposes:
+The agent can call tools for:
 
 ```text
 search_products()
@@ -187,7 +271,7 @@ get_product_details()
 compare_products()
 ```
 
-The following functions are used internally by the deterministic inventory workflow:
+The inventory workflow is handled separately by deterministic Python functions:
 
 ```text
 check_store_stock()
@@ -196,21 +280,84 @@ get_delivery_time()
 check_product_availability()
 ```
 
+The LLM therefore does not directly query or interpret the inventory database.
+
+## Product Details
+
+The `get_product_details()` tool retrieves the complete structured information available for a specific product.
+
+Example:
+
+```text
+get_product_details("LAP0279")
+```
+
+This allows the agent to answer detailed product-specific questions using the catalog as the source of truth.
+
+## Product Comparison
+
+The `compare_products()` tool allows the agent to compare specific products when the user explicitly requests a comparison.
+
+The comparison is based on verified catalog fields rather than external assumptions about hardware capabilities or performance.
+
+Example:
+
+```text
+compare_products(["LAP0279", "LAP1942"])
+```
+
+## Grounding Validation
+
+A final validation layer checks the generated response for unsupported claims.
+
+The validator detects prohibited or unsupported statements about:
+
+* product capabilities
+* hardware performance
+* availability
+* delivery
+* pickup
+* unsupported specifications
+* comparisons that are not grounded in tool results
+
+If a potentially unsupported claim is detected, the response is regenerated with instructions to use only information explicitly present in the tool results.
+
+This provides an additional safeguard against hallucinated product information.
+
 ## Example
 
 User:
 
-> I need a laptop for machine learning with at least 16 GB RAM, an NVIDIA GPU, under $600, and I need it within three days.
+> I need a Lenovo laptop for machine learning, at least 16 GB RAM, 512 GB SSD, NVIDIA GPU, under $600, and I need it within 3 days.
 
-The agent:
+The system:
 
-1. extracts the product requirements;
-2. searches the structured catalog;
-3. ranks matching candidates;
-4. verifies store and warehouse inventory;
-5. checks warehouse-to-store transfer information when necessary;
-6. returns only verified products;
-7. explains the available options without inventing unsupported technical or delivery information.
+1. extracts the requirements;
+2. applies SQL filters;
+3. semantically ranks the matching candidates;
+4. checks availability for all returned candidates;
+5. checks warehouse stock when necessary;
+6. retrieves warehouse-to-store transfer information;
+7. returns only verified products;
+8. generates a grounded response;
+9. validates the final response for unsupported claims.
+
+Example verified result:
+
+```text
+Lenovo Ideapad Gaming 3 15IHU6
+
+Price: $551.14
+RAM: 16 GB
+SSD: 512 GB
+GPU: GeForce GTX 1650, 4 GB
+Warehouse stock: 3 units
+
+Astana Mega Silk Way: 1–2 days
+Astana Khan Shatyr: 2–3 days
+```
+
+The transfer estimates are kept separate from customer delivery information.
 
 ## Tech Stack
 
@@ -220,6 +367,7 @@ The agent:
 * NumPy
 * Sentence Transformers
 * FAISS
+* PyTorch
 * OpenAI Python SDK
 * OpenRouter
 * python-dotenv
@@ -228,7 +376,7 @@ The agent:
 ## Project Structure
 
 ```text
-tech_ai/
+ai-shopping-agent/
 ├── data/
 │   ├── laptop.csv
 │   └── laptops_clean.csv
@@ -260,18 +408,57 @@ tech_ai/
 └── README.md
 ```
 
+## Testing
+
+The current agent workflow has been tested with:
+
+### Complex product search
+
+Multiple simultaneous requirements including:
+
+* brand
+* minimum RAM
+* minimum SSD
+* GPU brand
+* maximum price
+* natural-language semantic requirements
+
+### Availability
+
+Tested:
+
+* store inventory
+* warehouse inventory
+* warehouse-to-store transfer routes
+* explicit destination store
+* no destination store
+* delivery-deadline grounding
+
+### Product details
+
+Tested retrieval of complete product specifications using a product ID.
+
+### Product comparison
+
+Tested comparison of two specific products using the comparison tool.
+
+### No-result handling
+
+Tested impossible catalog requirements to verify that the agent reports the absence of matching products without making claims about the real-world existence of such products.
+
 ## Roadmap
 
 * [X] Collect and inspect product dataset
 * [X] Clean and normalize product data
 * [X] Build SQLite product catalog
 * [X] Implement structured product search
+* [X] Implement natural-language requirement parsing
 * [X] Implement product details retrieval
 * [X] Create store and warehouse inventory
 * [X] Implement store stock checking
 * [X] Implement warehouse stock checking
-* [X] Create warehouse-to-store delivery routes
-* [X] Implement delivery time lookup
+* [X] Create warehouse-to-store transfer routes
+* [X] Implement transfer time lookup
 * [X] Implement product comparison
 * [X] Add semantic product search
 * [X] Add embeddings and FAISS vector search
@@ -281,19 +468,26 @@ tech_ai/
 * [X] Build shopping agent workflow
 * [X] Add deterministic availability verification
 * [X] Add grounding validation
-* [ ] Improve hybrid retrieval integration
+* [X] Test multi-filter product search
+* [X] Test availability and deadline handling
+* [X] Test product details retrieval
+* [X] Test product comparison
+* [X] Test no-result handling
 * [ ] Add automated agent evaluation
-* [ ] Add Streamlit interface
+* [ ] Build Streamlit interface
+* [ ] Add interactive product cards
 * [ ] Add demonstration examples
 * [ ] Improve documentation
 
 ## Future Goal
 
-The final system should allow users to describe their shopping requirements in natural language and receive product options grounded in:
+The final system will allow users to describe shopping requirements in natural language and receive product options grounded in:
 
 * product specifications
-* catalog constraints
+* explicit catalog constraints
 * verified inventory
 * warehouse-to-store transfer information
 
-The system is designed to separate probabilistic LLM reasoning from deterministic business logic, reducing unsupported claims about products and availability.
+The project is designed around a separation between probabilistic LLM reasoning and deterministic business logic.
+
+The LLM handles natural-language interaction and tool selection, while Python handles structured filtering, inventory verification, and other deterministic operations.

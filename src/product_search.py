@@ -280,22 +280,28 @@ def get_delivery_time(product_id, destination_store):
 
     return dict(row)
 
-def check_product_availability(product_id, destination_store):
+def check_product_availability(product_id, destination_store=None):
     """
     Determine product availability using the store -> warehouse -> delivery workflow.
 
-    Workflow:
-    1. Check physical store stock.
-    2. If store stock exists, return it and stop.
-    3. Otherwise check warehouse stock.
-    4. If warehouse stock exists, check delivery time to the destination store.
-    5. Otherwise mark the product as unavailable.
+    If destination_store is specified:
+        1. Check stock in that store.
+        2. If unavailable there, check warehouse stock and transfer time
+           to that store.
+
+    If destination_store is None:
+        1. Check stock in all stores.
+        2. If the product is not in any store, check warehouse stock
+           and transfer times to all stores.
     """
 
     # Step 1: check store stock
-    store_stock = check_store_stock(product_id)
+    store_stock = check_store_stock(
+        product_id,
+        store_name=destination_store
+    )
 
-    if store_stock:
+    if store_stock and destination_store is not None:
         return {
             "status": "store_stock",
             "product_id": product_id,
@@ -311,25 +317,81 @@ def check_product_availability(product_id, destination_store):
             "product_id": product_id,
         }
 
-    # Step 3: check delivery from warehouse to destination store
-    delivery = get_delivery_time(
-        product_id,
-        destination_store
-    )
+    # Step 3: check warehouse-to-store transfer
+    if destination_store is not None:
+        delivery = get_delivery_time(
+            product_id,
+            destination_store
+        )
 
-    if delivery is None:
+        if delivery is None:
+            return {
+                "status": "warehouse_stock",
+                "product_id": product_id,
+                "warehouses": warehouse_stock,
+                "delivery": None,
+            }
+
+        return {
+            "status": "warehouse_delivery",
+            "product_id": product_id,
+            "warehouses": warehouse_stock,
+            "delivery": delivery,
+        }
+
+    # No destination store specified:
+    # check delivery routes to all stores
+    connection = sqlite3.connect(DB_PATH)
+    connection.row_factory = sqlite3.Row
+    cursor = connection.cursor()
+
+    query = """
+        SELECT
+            p.product_id,
+            source.location_name AS warehouse,
+            destination.location_name AS destination,
+            i.quantity,
+            r.min_days,
+            r.max_days
+        FROM inventory i
+
+        JOIN products p
+            ON i.product_id = p.product_id
+
+        JOIN locations source
+            ON i.location_id = source.location_id
+
+        JOIN delivery_routes r
+            ON r.from_location_id = source.location_id
+
+        JOIN locations destination
+            ON r.to_location_id = destination.location_id
+
+        WHERE i.product_id = ?
+          AND source.location_type = 'warehouse'
+          AND i.quantity > 0
+          AND destination.location_type = 'store'
+    """
+
+    cursor.execute(query, (product_id,))
+
+    deliveries = [dict(row) for row in cursor.fetchall()]
+
+    connection.close()
+
+    if not deliveries:
         return {
             "status": "warehouse_stock",
             "product_id": product_id,
             "warehouses": warehouse_stock,
-            "delivery": None,
+            "delivery": [],
         }
 
     return {
         "status": "warehouse_delivery",
         "product_id": product_id,
         "warehouses": warehouse_stock,
-        "delivery": delivery,
+        "delivery": deliveries,
     }
 
 def compare_products(product_ids):
