@@ -2,5 +2,8 @@ pandas
 numpy
 sentence-transformers
 faiss-cpu
+torch
+torchvision
 openai
 python-dotenv
+streamlit
